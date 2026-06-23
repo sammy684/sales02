@@ -57,7 +57,7 @@ body{background:#0f1117;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-seri
 .charts-row{display:grid;gap:14px;margin-bottom:16px}
 .charts-row.col2{grid-template-columns:1fr 1fr}
 .charts-row.col3{grid-template-columns:1fr 1fr 1fr}
-.chart-card{background:#1a2236;border:1px solid #2d3748;border-radius:10px;padding:14px}
+.chart-card{background:#1a2236;border:1px solid #2d3748;border-radius:10px;padding:14px;min-width:0}
 .chart-card h3{font-size:.78rem;color:#94a3b8;margin-bottom:3px;text-transform:uppercase;letter-spacing:.05em}
 .chart-hint{font-size:.65rem;color:#3b4f6b;margin-bottom:10px}
 .chart-wrap{position:relative;cursor:pointer}
@@ -441,7 +441,7 @@ function switchTab(name){
   document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',TAB_NAMES[i]===name));
   document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
   document.getElementById('tab-'+name).classList.add('active');
-  if(!tabInited[name]){ tabInited[name]=true; INIT_FNS[name](); }
+  if(!tabInited[name]){ tabInited[name]=true; requestAnimationFrame(()=>INIT_FNS[name]()); }
 }
 
 function refreshCurrentTab(){
@@ -449,7 +449,7 @@ function refreshCurrentTab(){
   Object.keys(CHARTS).forEach(id=>destroyChart(id));
   tabInited={};
   tabInited[CURRENT_TAB]=true;
-  INIT_FNS[CURRENT_TAB]();
+  requestAnimationFrame(()=>INIT_FNS[CURRENT_TAB]());
   // if detail tab open, re-render without re-init
 }
 
