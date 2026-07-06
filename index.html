@@ -63,6 +63,10 @@ body{background:#0f1117;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-seri
 .pub-range-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .pub-sel{background:#1a2236;border:1px solid #2d3748;border-radius:6px;color:#e2e8f0;padding:4px 8px;font-size:.75rem;cursor:pointer;outline:none}
 .pub-sel:focus{border-color:#3b82f6}
+.scroll-chips{max-height:68px;overflow-y:auto;flex-wrap:wrap}
+.area-search{background:#1a2236;border:1px solid #2d3748;border-radius:6px;color:#e2e8f0;padding:3px 8px;font-size:.72rem;width:110px;outline:none;margin-bottom:3px}
+.area-search::placeholder{color:#475569}
+.area-search:focus{border-color:#3b82f6}
 .pub-sep{color:#475569;font-size:.8rem}
 .chart-wrap{position:relative;cursor:pointer}
 .chart-wrap.tall{height:320px}
@@ -186,6 +190,22 @@ tbody td{padding:6px 10px;color:#cbd5e1}
       <select id="pub-to" class="pub-sel" onchange="setPubRange()"><option value="0">不限結束</option></select>
     </div>
   </div>
+  <div class="filter-group">
+    <div class="filter-group-label">業務組</div>
+    <div class="chips" id="chips-team"></div>
+  </div>
+  <div class="filter-group">
+    <div class="filter-group-label">業務員</div>
+    <div class="chips" id="chips-person"></div>
+  </div>
+  <div class="filter-group">
+    <div class="filter-group-label">縣市</div>
+    <div class="chips" id="chips-city"></div>
+  </div>
+  <div class="filter-group">
+    <div class="filter-group-label">行政區</div>
+    <div><input type="text" id="area-search" class="area-search" placeholder="搜尋行政區..." oninput="renderAreaChips(this.value)"><div class="chips scroll-chips" id="chips-area"></div></div>
+  </div>
   <div class="filter-result">
     <span class="filter-count" id="filter-count">662 筆</span>
     <button class="filter-reset" onclick="resetFilters()">重設預設</button>
@@ -242,7 +262,15 @@ const ALL_TEAM_MAP = {};
 Object.entries(TEAM_MEMBERS).forEach(([t,ms])=>ms.forEach(m=>ALL_TEAM_MAP[m]=t));
 
 
-const FILTERS = { val:['有價值'], coop:['未合作'], dev:[], g:[], pubFrom:0, pubTo:0 };
+
+const PERSON_OPTS=[...new Set(ALL.filter(r=>r.person).map(r=>r.person))].sort((a,b)=>a.localeCompare(b,'zh-TW'));
+const CITY_OPTS=[...new Set(ALL.filter(r=>r.city).map(r=>r.city))].sort((a,b)=>a.localeCompare(b,'zh-TW'));
+function getAreaOpts(search=''){
+  const cf=FILTERS.city;
+  const all=[...new Set(ALL.filter(r=>r.area&&(cf.length===0||cf.includes(r.city))).map(r=>r.area))].sort((a,b)=>a.localeCompare(b,'zh-TW'));
+  return search?all.filter(a=>a.includes(search)):all;
+}
+const FILTERS = { val:['有價值'], coop:['未合作'], dev:[], g:[], pubFrom:0, pubTo:0, team:[], person:[], city:[], area:[] };
 let FILTERED = [];       // currently filtered rows
 let CURRENT_TAB = 'county';
 const CHARTS = {};       // chart instances keyed by canvas id
@@ -258,6 +286,10 @@ function applyFilters(){
     const grade = r.g || '無等級';
     if(FILTERS.g.length && !FILTERS.g.includes(grade)) return false;
     if(FILTERS.pubFrom>0||FILTERS.pubTo>0){if(!r.pub)return false;if(FILTERS.pubFrom>0&&r.pub<FILTERS.pubFrom)return false;if(FILTERS.pubTo>0&&r.pub>FILTERS.pubTo)return false;}
+    if(FILTERS.team.length   && !FILTERS.team.includes(r.team))   return false;
+    if(FILTERS.person.length && !FILTERS.person.includes(r.person)) return false;
+    if(FILTERS.city.length   && !FILTERS.city.includes(r.city))   return false;
+    if(FILTERS.area.length   && !FILTERS.area.includes(r.area))   return false;
     return true;
   });
   document.getElementById('filter-count').textContent = FILTERED.length.toLocaleString()+' 筆';
@@ -269,16 +301,20 @@ function toggleFilter(dim, val){
   const arr = FILTERS[dim];
   const i = arr.indexOf(val);
   if(i>=0) arr.splice(i,1); else arr.push(val);
+  if(dim==='city'){
+    const valid=new Set(getAreaOpts());
+    FILTERS.area=FILTERS.area.filter(a=>valid.has(a));
+  }
   renderChips();
   applyFilters();
 }
 function resetFilters(){
-  FILTERS.val=['有價值']; FILTERS.coop=['未合作']; FILTERS.dev=[]; FILTERS.g=[]; FILTERS.pubFrom=0; FILTERS.pubTo=0;
-  renderChips(); renderPubRange(); applyFilters();
+  FILTERS.val=['有價值']; FILTERS.coop=['未合作']; FILTERS.dev=[]; FILTERS.g=[]; FILTERS.pubFrom=0; FILTERS.pubTo=0; FILTERS.team=[]; FILTERS.person=[]; FILTERS.city=[]; FILTERS.area=[];
+  renderChips(); renderPubRange(); renderAreaChips(); applyFilters();
 }
 function clearFilters(){
-  FILTERS.val=[]; FILTERS.coop=[]; FILTERS.dev=[]; FILTERS.g=[]; FILTERS.pubFrom=0; FILTERS.pubTo=0;
-  renderChips(); renderPubRange(); applyFilters();
+  FILTERS.val=[]; FILTERS.coop=[]; FILTERS.dev=[]; FILTERS.g=[]; FILTERS.pubFrom=0; FILTERS.pubTo=0; FILTERS.team=[]; FILTERS.person=[]; FILTERS.city=[]; FILTERS.area=[];
+  renderChips(); renderPubRange(); renderAreaChips(); applyFilters();
 }
 
 
@@ -301,6 +337,22 @@ function renderPubRange(){
   mkOpts(fromSel, FILTERS.pubFrom, '不限起始');
   mkOpts(toSel,   FILTERS.pubTo,   '不限結束');
 }
+
+function renderAreaChips(search=''){
+  const container=document.getElementById('chips-area');
+  if(!container) return;
+  const opts=getAreaOpts(search);
+  container.innerHTML=opts.map(v=>{
+    const active=FILTERS.area.includes(v);
+    return `<span class="chip${active?' active':''}" onclick="toggleAreaFilter('${v}')">${v}</span>`;
+  }).join('');
+}
+function toggleAreaFilter(val){
+  const i=FILTERS.area.indexOf(val);
+  if(i>=0) FILTERS.area.splice(i,1); else FILTERS.area.push(val);
+  renderAreaChips(document.getElementById('area-search')?.value||'');
+  applyFilters();
+}
 function setPubRange(){
   const f=parseInt(document.getElementById('pub-from').value)||0;
   const t=parseInt(document.getElementById('pub-to').value)||0;
@@ -315,11 +367,16 @@ const CHIP_DEFS = [
   {dim:'coop', el:'chips-coop',  opts:CFG.coop_opts},
   {dim:'dev',  el:'chips-dev',   opts:CFG.dev_opts},
   {dim:'g',    el:'chips-grade', opts:CFG.grade_opts},
+  {dim:'team',   el:'chips-team',   opts:()=>Object.keys(TEAM_MEMBERS).sort()},
+  {dim:'person', el:'chips-person', opts:()=>PERSON_OPTS},
+  {dim:'city',   el:'chips-city',   opts:()=>CITY_OPTS},
 ];
 function renderChips(){
   CHIP_DEFS.forEach(({dim,el,opts})=>{
     const container = document.getElementById(el);
-    container.innerHTML = opts.map(v=>{
+    if(!container) return;
+    const optList = typeof opts==='function'?opts():opts;
+    container.innerHTML = optList.map(v=>{
       const active = FILTERS[dim].includes(v);
       const cls = `chip ${active?'active':''} ${dim}-${v}`;
       return `<span class="${cls}" onclick="toggleFilter('${dim}','${v}')">${v}</span>`;
@@ -905,8 +962,13 @@ function handleXlsxUpload(input) {
             FILTERS.g    = [];
             FILTERS.pubFrom = 0;
             FILTERS.pubTo   = 0;
+            FILTERS.team   = [];
+            FILTERS.person = [];
+            FILTERS.city   = [];
+            FILTERS.area   = [];
             renderChips();
             renderPubRange();
+            renderAreaChips();
             applyFilters();
             // force re-init all tabs
             Object.keys(CHARTS).forEach(id => destroyChart(id));
@@ -940,6 +1002,7 @@ function handleXlsxUpload(input) {
 // ============================================================
 renderChips();
 renderPubRange();
+renderAreaChips();
 applyFilters();
 switchTab('county');
 
