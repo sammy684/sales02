@@ -564,7 +564,7 @@ function coopBadge(c){ const m={'合作中':'#3b82f6','合作結束':'#f59e0b','
 // TAB SWITCHING
 // ============================================================
 const TAB_NAMES=['county','team','person','cross','detail','visit'];
-const INIT_FNS={county:initCounty, team:initTeam, person:initPerson, cross:initCross, detail:initDetail, visit:initVisit};
+const INIT_FNS={county:initCounty, team:initTeam, person:initPerson, cross:initCross, detail:initDetail, visit:()=>initVisit()};
 let tabInited={};
 
 function switchTab(name){
@@ -1041,6 +1041,147 @@ renderPubRange();
 renderAreaChips();
 applyFilters();
 switchTab('county');
+
+
+// ============================================================
+// 拜訪分析 TAB
+// ============================================================
+let visitThreshold = 180;
+
+function _dateFromYMD(d){
+  if(!d||d===0) return null;
+  const s=String(d).padStart(8,'0');
+  return new Date(+s.slice(0,4), +s.slice(4,6)-1, +s.slice(6,8));
+}
+function _daysSince(d){
+  if(!d) return null;
+  const today=new Date();
+  today.setHours(0,0,0,0);
+  const dt=_dateFromYMD(d);
+  if(!dt) return null;
+  return Math.floor((today - dt)/(1000*60*60*24));
+}
+function _fmtYMD(d){
+  if(!d||d===0) return '—';
+  const s=String(d).padStart(8,'0');
+  return s.slice(0,4)+'/'+s.slice(4,6)+'/'+s.slice(6,8);
+}
+
+function initVisit(){
+  const el=document.getElementById('tab-visit');
+  el.innerHTML=`
+<div class="section-title">拜訪分析</div>
+<div class="visit-controls">
+  <label>未拜訪閾值：</label>
+  <input type="number" id="visit-threshold-input" class="visit-threshold" value="${visitThreshold}" min="1" max="999" style="width:75px" oninput="visitThreshold=parseInt(this.value)||180;renderVisit()">
+  <span style="color:#64748b;font-size:.8rem">天（超過此天數視為需關注）</span>
+  <div style="flex:1"></div>
+  <span style="color:#475569;font-size:.75rem">點擊業務員列可展開查看案件明細</span>
+</div>
+<div class="visit-summary" id="visit-summary"></div>
+<div style="overflow-x:auto"><table class="visit-table">
+  <thead><tr>
+    <th>業務員</th><th>業務組</th><th>最近拜訪日</th><th>距今(天)</th>
+    <th>篩選案件數</th><th>超過閾值案件</th><th>無記錄案件</th><th>狀態</th>
+  </tr></thead>
+  <tbody id="visit-tbody"></tbody>
+</table></div>`;
+  renderVisit();
+}
+
+function renderVisit(){
+  if(!document.getElementById('visit-tbody')) return;
+  const thresh = visitThreshold;
+  const byPerson={};
+  FILTERED.forEach(r=>{
+    const key=r.person||'(未指定)';
+    if(!byPerson[key]) byPerson[key]={team:r.team||'—',cases:[]};
+    byPerson[key].cases.push(r);
+  });
+  const stats=Object.entries(byPerson).map(([person,{team,cases}])=>{
+    const withVisit=cases.filter(r=>r.visit>0);
+    const maxVisit=withVisit.length?Math.max(...withVisit.map(r=>r.visit)):0;
+    const days=maxVisit?_daysSince(maxVisit):null;
+    const overdueCount=cases.filter(r=>r.visit>0&&(_daysSince(r.visit)||0)>=thresh).length;
+    const noVisitCount=cases.filter(r=>!r.visit||r.visit===0).length;
+    return {person,team,cases,maxVisit,days,overdueCount,noVisitCount};
+  }).sort((a,b)=>{
+    if(a.days===null&&b.days!==null) return -1;
+    if(a.days!==null&&b.days===null) return 1;
+    if(a.days===null&&b.days===null) return a.person.localeCompare(b.person,'zh-TW');
+    return (b.days||0)-(a.days||0);
+  });
+  const okCount=stats.filter(s=>s.days!==null&&s.days<thresh).length;
+  const overCount=stats.filter(s=>s.days!==null&&s.days>=thresh).length;
+  const noneCount=stats.filter(s=>s.days===null).length;
+  document.getElementById('visit-summary').innerHTML=`
+    <div class="visit-kpi ok"><div class="vk-num">${okCount}</div><div class="vk-label">正常（&lt; ${thresh} 天）</div></div>
+    <div class="visit-kpi warn"><div class="vk-num">${overCount}</div><div class="vk-label">超過 ${thresh} 天</div></div>
+    <div class="visit-kpi no"><div class="vk-num">${noneCount}</div><div class="vk-label">無拜訪紀錄</div></div>`;
+  const tbody=document.getElementById('visit-tbody');
+  tbody.innerHTML='';
+  stats.forEach((s,i)=>{
+    const isOver=s.days===null||(s.days>=thresh);
+    const isWarn=s.days!==null&&s.days>=Math.floor(thresh*0.75)&&s.days<thresh;
+    const rowCls=isOver?'person-row overdue':isWarn?'person-row warn-row':'person-row ok-row';
+    const badge=s.days===null
+      ?'<span class="visit-badge badge-none">無記錄</span>'
+      :s.days>=thresh
+        ?`<span class="visit-badge badge-over">逾期 ${s.days} 天</span>`
+        :s.days>=Math.floor(thresh*0.75)
+          ?`<span class="visit-badge badge-warn">${s.days} 天</span>`
+          :`<span class="visit-badge badge-ok">${s.days} 天</span>`;
+    const tr=document.createElement('tr');
+    tr.className=rowCls;
+    tr.innerHTML=`
+      <td><span class="toggle-arrow" id="varr-${i}">▶</span>${s.person}</td>
+      <td>${s.team}</td>
+      <td>${_fmtYMD(s.maxVisit)}</td>
+      <td>${s.days!==null?s.days:'—'}</td>
+      <td>${s.cases.length}</td>
+      <td style="color:${s.overdueCount>0?'#fca5a5':'#94a3b8'}">${s.overdueCount}</td>
+      <td style="color:${s.noVisitCount>0?'#f59e0b':'#94a3b8'}">${s.noVisitCount}</td>
+      <td>${badge}</td>`;
+    tr.onclick=()=>_toggleVisitDetail(i,s,tr,tbody);
+    tbody.appendChild(tr);
+  });
+}
+
+function _toggleVisitDetail(i,s,tr,tbody){
+  const existing=document.getElementById('vexp-'+i);
+  const arr=document.getElementById('varr-'+i);
+  if(existing){existing.remove();arr.style.transform='';return;}
+  arr.style.transform='rotate(90deg)';
+  const thresh=visitThreshold;
+  const sorted=[...s.cases].sort((a,b)=>{
+    if(!a.visit&&b.visit) return -1;
+    if(a.visit&&!b.visit) return 1;
+    return (a.visit||0)-(b.visit||0);
+  });
+  const display=sorted.slice(0,60);
+  const caseRows=display.map(r=>{
+    const d=r.visit?_daysSince(r.visit):null;
+    const over=d===null||(d>=thresh);
+    return `<tr class="${over?'case-over':''}">
+      <td>${r.n||'—'}</td>
+      <td>${r.city||''}${r.area?' '+r.area:''}</td>
+      <td>${_fmtYMD(r.visit)}</td>
+      <td>${d!==null?d+'天':'無記錄'}</td>
+      <td>${r.stage||'—'}</td>
+      <td>${r.will||'—'}</td>
+      <td>${r.g||'—'}</td>
+    </tr>`;
+  }).join('');
+  const moreRow=sorted.length>60?`<tr><td colspan="7" style="color:#475569;text-align:center;padding:6px">… 共 ${sorted.length} 筆，顯示最舊 60 筆</td></tr>`:'';
+  const expTr=document.createElement('tr');
+  expTr.id='vexp-'+i;
+  expTr.className='visit-expand';
+  expTr.innerHTML=`<td colspan="8" style="padding:0 16px 8px"><table class="case-mini-table">
+    <thead><tr><th>建案名稱</th><th>地區</th><th>上次拜訪</th><th>距今</th><th>銷售階段</th><th>合作意願</th><th>等級</th></tr></thead>
+    <tbody>${caseRows}${moreRow}</tbody>
+  </table></td>`;
+  tr.after(expTr);
+}
 
 </script>
 </body>
