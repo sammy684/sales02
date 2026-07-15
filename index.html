@@ -1201,13 +1201,31 @@ function renderVisit(){
     if(a.days===null&&b.days===null) return a.person.localeCompare(b.person,'zh-TW');
     return (b.days||0)-(a.days||0);
   });
-  const okCount=stats.filter(s=>s.days!==null&&s.days<thresh).length;
-  const overCount=stats.filter(s=>s.days!==null&&s.days>=thresh).length;
-  const noneCount=stats.filter(s=>s.days===null).length;
+  // 案件層級統計
+  const caseOk    = FILTERED.filter(r=>r.visit>0 && (_daysSince(r.visit)||0)<thresh).length;
+  const caseOver  = FILTERED.filter(r=>r.visit>0 && (_daysSince(r.visit)||0)>=thresh).length;
+  const caseNone  = FILTERED.filter(r=>!r.visit||r.visit===0).length;
+  // 業務員層級（摘要用）
+  const persOver  = stats.filter(s=>s.days===null||(s.days>=thresh)).length;
+  const persTotal = stats.length;
   document.getElementById('visit-summary').innerHTML=`
-    <div class="visit-kpi ok"><div class="vk-num">${okCount}</div><div class="vk-label">正常（&lt; ${thresh} 天）</div></div>
-    <div class="visit-kpi warn"><div class="vk-num">${overCount}</div><div class="vk-label">超過 ${thresh} 天</div></div>
-    <div class="visit-kpi no"><div class="vk-num">${noneCount}</div><div class="vk-label">無拜訪紀錄</div></div>`;
+    <div class="visit-kpi ok">
+      <div class="vk-num">${caseOk}</div>
+      <div class="vk-label">正常案件（${thresh} 天內有拜訪）</div>
+    </div>
+    <div class="visit-kpi warn">
+      <div class="vk-num">${caseOver}</div>
+      <div class="vk-label">需關注案件（超過 ${thresh} 天）</div>
+    </div>
+    <div class="visit-kpi no">
+      <div class="vk-num">${caseNone}</div>
+      <div class="vk-label">無拜訪記錄案件</div>
+    </div>
+    <div style="grid-column:1/-1;font-size:.75rem;color:#475569;padding:2px 0">
+      共 <span style="color:#94a3b8;font-weight:600">${persTotal}</span> 位業務員，其中
+      <span style="color:${persOver>0?'#fca5a5':'#34d399'};font-weight:600">${persOver}</span> 位
+      最近拜訪超過 ${thresh} 天或無記錄
+    </div>`;
   const tbody=document.getElementById('visit-tbody');
   tbody.innerHTML='';
   stats.forEach((s,i)=>{
