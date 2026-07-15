@@ -14,9 +14,19 @@ body{background:#0f1117;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-seri
 .header h1{font-size:1.35rem;font-weight:700;color:#93c5fd}
 .header p{font-size:.78rem;color:#94a3b8;margin-top:2px}
 /* filter bar */
-.filter-bar{background:#111827;border-bottom:2px solid #1e3a5f;padding:12px 28px;display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start}
-.filter-group{display:flex;flex-direction:column;gap:5px}
+.filter-bar{background:#111827;border-bottom:2px solid #1e3a5f;padding:10px 28px;display:flex;flex-wrap:wrap;gap:8px;align-items:flex-start}
+.filter-group{display:flex;flex-direction:column}
 .filter-group-label{font-size:.65rem;color:#64748b;text-transform:uppercase;letter-spacing:.07em;font-weight:600}
+/* collapsible group header */
+.fg-header{display:flex;align-items:center;gap:5px;cursor:pointer;padding:4px 10px;border-radius:6px;background:#1a2236;border:1px solid #2d3748;user-select:none;white-space:nowrap;transition:.15s}
+.fg-header:hover{border-color:#4b5563;background:#1e293b}
+.fg-header .fg-label{font-size:.72rem;color:#94a3b8;font-weight:500}
+.fg-badge{background:#3b82f6;color:#fff;border-radius:99px;padding:1px 7px;font-size:.62rem;font-weight:700;display:none;min-width:16px;text-align:center}
+.fg-badge.visible{display:inline-block}
+.fg-arr{color:#475569;font-size:.65rem;transition:transform .2s;margin-left:2px}
+.fg-arr.open{transform:rotate(90deg);color:#93c5fd}
+.fg-body{display:none;padding-top:6px}
+.fg-body.open{display:block}
 .chips{display:flex;gap:5px;flex-wrap:wrap}
 .chip{padding:4px 11px;border-radius:99px;font-size:.72rem;cursor:pointer;border:1px solid #2d3748;color:#94a3b8;background:transparent;transition:.15s;user-select:none;font-weight:500}
 .chip:hover{border-color:#4b5563;color:#e2e8f0}
@@ -199,47 +209,88 @@ tbody td{padding:6px 10px;color:#cbd5e1}
 <!-- GLOBAL FILTER BAR -->
 <div class="filter-bar" id="filter-bar">
   <div class="filter-group">
-    <div class="filter-group-label">有無價值</div>
-    <div class="chips" id="chips-val"></div>
+    <div class="fg-header" onclick="toggleFG('val')">
+      <span class="fg-label">有無價值</span>
+      <span class="fg-badge" id="fgb-val"></span>
+      <span class="fg-arr" id="fga-val">▸</span>
+    </div>
+    <div class="fg-body" id="fgbody-val"><div class="chips" id="chips-val"></div></div>
   </div>
   <div class="filter-group">
-    <div class="filter-group-label">合作情況</div>
-    <div class="chips" id="chips-coop"></div>
+    <div class="fg-header" onclick="toggleFG('coop')">
+      <span class="fg-label">合作情況</span>
+      <span class="fg-badge" id="fgb-coop"></span>
+      <span class="fg-arr" id="fga-coop">▸</span>
+    </div>
+    <div class="fg-body" id="fgbody-coop"><div class="chips" id="chips-coop"></div></div>
   </div>
   <div class="filter-group">
-    <div class="filter-group-label">開發情況</div>
-    <div class="chips" id="chips-dev"></div>
+    <div class="fg-header" onclick="toggleFG('dev')">
+      <span class="fg-label">開發情況</span>
+      <span class="fg-badge" id="fgb-dev"></span>
+      <span class="fg-arr" id="fga-dev">▸</span>
+    </div>
+    <div class="fg-body" id="fgbody-dev"><div class="chips" id="chips-dev"></div></div>
   </div>
   <div class="filter-group">
-    <div class="filter-group-label">建案等級</div>
-    <div class="chips" id="chips-grade"></div>
+    <div class="fg-header" onclick="toggleFG('grade')">
+      <span class="fg-label">建案等級</span>
+      <span class="fg-badge" id="fgb-grade"></span>
+      <span class="fg-arr" id="fga-grade">▸</span>
+    </div>
+    <div class="fg-body" id="fgbody-grade"><div class="chips" id="chips-grade"></div></div>
   </div>
   <div class="filter-group">
-    <div class="filter-group-label">公銷月份區間</div>
-    <div class="pub-range-row">
-      <select id="pub-from" class="pub-sel" onchange="setPubRange()"><option value="0">不限起始</option></select>
-      <span class="pub-sep">～</span>
-      <select id="pub-to" class="pub-sel" onchange="setPubRange()"><option value="0">不限結束</option></select>
+    <div class="fg-header" onclick="toggleFG('pub')">
+      <span class="fg-label">公銷月份區間</span>
+      <span class="fg-badge" id="fgb-pub"></span>
+      <span class="fg-arr" id="fga-pub">▸</span>
+    </div>
+    <div class="fg-body" id="fgbody-pub">
+      <div class="pub-range-row">
+        <select id="pub-from" class="pub-sel" onchange="setPubRange()"><option value="0">不限起始</option></select>
+        <span class="pub-sep">～</span>
+        <select id="pub-to" class="pub-sel" onchange="setPubRange()"><option value="0">不限結束</option></select>
+      </div>
     </div>
   </div>
   <div class="filter-group">
-    <div class="filter-group-label">業務組</div>
-    <div class="chips" id="chips-team"></div>
+    <div class="fg-header" onclick="toggleFG('team')">
+      <span class="fg-label">業務組</span>
+      <span class="fg-badge" id="fgb-team"></span>
+      <span class="fg-arr" id="fga-team">▸</span>
+    </div>
+    <div class="fg-body" id="fgbody-team"><div class="chips" id="chips-team"></div></div>
   </div>
   <div class="filter-group">
-    <div class="filter-group-label">業務員</div>
-    <div class="chips" id="chips-person"></div>
+    <div class="fg-header" onclick="toggleFG('person')">
+      <span class="fg-label">業務員</span>
+      <span class="fg-badge" id="fgb-person"></span>
+      <span class="fg-arr" id="fga-person">▸</span>
+    </div>
+    <div class="fg-body" id="fgbody-person"><div class="chips" id="chips-person"></div></div>
   </div>
   <div class="filter-group">
-    <div class="filter-group-label">縣市</div>
-    <div class="chips" id="chips-city"></div>
+    <div class="fg-header" onclick="toggleFG('city')">
+      <span class="fg-label">縣市</span>
+      <span class="fg-badge" id="fgb-city"></span>
+      <span class="fg-arr" id="fga-city">▸</span>
+    </div>
+    <div class="fg-body" id="fgbody-city"><div class="chips" id="chips-city"></div></div>
   </div>
   <div class="filter-group">
-    <div class="filter-group-label">行政區</div>
-    <div><input type="text" id="area-search" class="area-search" placeholder="搜尋行政區..." oninput="renderAreaChips(this.value)"><div class="chips scroll-chips" id="chips-area"></div></div>
+    <div class="fg-header" onclick="toggleFG('area')">
+      <span class="fg-label">行政區</span>
+      <span class="fg-badge" id="fgb-area"></span>
+      <span class="fg-arr" id="fga-area">▸</span>
+    </div>
+    <div class="fg-body" id="fgbody-area">
+      <input type="text" id="area-search" class="area-search" placeholder="搜尋行政區..." oninput="renderAreaChips(this.value)">
+      <div class="chips scroll-chips" id="chips-area"></div>
+    </div>
   </div>
   <div class="filter-result">
-    <span class="filter-count" id="filter-count">662 筆</span>
+    <span class="filter-count" id="filter-count">— 筆</span>
     <button class="filter-reset" onclick="resetFilters()">重設預設</button>
     <button class="filter-reset" onclick="clearFilters()" style="border-color:#ef444444;color:#ef4444">清除全部</button>
   </div>
@@ -327,6 +378,7 @@ function applyFilters(){
     return true;
   });
   document.getElementById('filter-count').textContent = FILTERED.length.toLocaleString()+' 筆';
+  updateAllBadges();
   renderKPIs();
   refreshCurrentTab();
 }
@@ -1031,6 +1083,44 @@ function handleXlsxUpload(input) {
         showToast('❌ 檔案讀取失敗', false);
     };
     reader.readAsArrayBuffer(file);
+}
+
+
+// ── Collapsible filter groups ──────────────────────────────
+function toggleFG(key){
+  const body=document.getElementById('fgbody-'+key);
+  const arr =document.getElementById('fga-'+key);
+  if(!body) return;
+  const isOpen=body.classList.contains('open');
+  body.classList.toggle('open',!isOpen);
+  arr.classList.toggle('open',!isOpen);
+}
+
+function updateAllBadges(){
+  const groups={
+    val:   FILTERS.val,
+    coop:  FILTERS.coop,
+    dev:   FILTERS.dev,
+    grade: FILTERS.g,
+    team:  FILTERS.team,
+    person:FILTERS.person,
+    city:  FILTERS.city,
+    area:  FILTERS.area,
+  };
+  Object.entries(groups).forEach(([key,arr])=>{
+    const badge=document.getElementById('fgb-'+key);
+    if(!badge) return;
+    const n=arr.length;
+    badge.textContent=n>0?('已選'+n):'';
+    badge.classList.toggle('visible', n>0);
+  });
+  // pub range badge
+  const pubBadge=document.getElementById('fgb-pub');
+  if(pubBadge){
+    const hasPub=FILTERS.pubFrom>0||FILTERS.pubTo>0;
+    pubBadge.textContent=hasPub?'已設定':'';
+    pubBadge.classList.toggle('visible',hasPub);
+  }
 }
 
 // ============================================================
